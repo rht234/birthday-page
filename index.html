@@ -16,18 +16,12 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', 'Poppins', system-ui, sans-serif;
-            overflow: hidden;
-            width: 100vw;
-            height: 100vh;
-            background: #000;
-            user-select: none;
-            -webkit-user-select: none;
-            -webkit-tap-highlight-color: transparent;
-            cursor: default;
+            overflow: hidden; width: 100vw; height: 100vh;
+            background: #000; user-select: none; -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent; cursor: default;
         }
         #particleCanvas {
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 60;
         }
         .common-bg {
@@ -167,17 +161,14 @@
             70% { transform: translateX(-15px) rotate(-2deg) scale(0.95); }
             100% { transform: translateX(0) rotate(0) scale(1); opacity: 1; }
         }
-        /* Cat video optimized for performance, WITHOUT mix-blend-mode */
         .cat-video {
-            width: 180px; height: auto; object-fit: cover; display: block;
-            background: #1a1a3e;
-            border-radius: 15px;
+            width: 180px; height: auto; object-fit: cover; display: none; /* Starts hidden */
+            background: #1a1a3e; border-radius: 15px;
             border: 2px solid rgba(255, 255, 255, 0.2);
-            will-change: transform;
-            contain: strict;
+            will-change: transform; contain: strict;
         }
         .cat-fallback {
-            font-size: 3rem; color: #fff; display: none; padding: 20px; text-align: center;
+            font-size: 4rem; color: #fff; display: block; padding: 10px; text-align: center;
         }
         .cat-chat-bubble {
             background: linear-gradient(135deg, #FAD0C4 0%, #FFD1FF 100%);
@@ -263,14 +254,6 @@
             white-space: pre-wrap; word-wrap: break-word; overflow: hidden;
             z-index: 2; padding: 0 5px; text-align: left;
         }
-        .note-cursor {
-            display: inline-block; width: 2px; height: 1.1em; background: transparent;
-            animation: cursorBlink 0.7s step-end infinite; vertical-align: text-bottom;
-        }
-        @keyframes cursorBlink {
-            0%, 100% { opacity: 0; }
-            50% { opacity: 0.3; }
-        }
         .note-pen {
             position: absolute; bottom: 5%; right: 8%; font-size: 2rem; z-index: 5;
             animation: penWrite 2s ease-in-out infinite;
@@ -289,7 +272,8 @@
             .timer-plate { width: 80%; padding: 15px 10px; }
             .timer-unit-value { font-size: 1.4rem; }
             .birthday-text-image { width: 300px; }
-            .cat-video { width: 130px; }
+            .cat-video { width: 140px; }
+            .cat-fallback { font-size: 3rem; }
             .cake-gif { width: 140px; }
             .countdown-num { font-size: 3rem; }
             .cat-chat-bubble { max-width: 280px; font-size: 0.9rem; }
@@ -358,10 +342,12 @@
     <div class="stage" id="stageCandle">
         <div class="candle-scene">
             <div class="full-cat-container" id="catContainer">
-                <video id="catVideo" class="cat-video" muted playsinline preload="auto" onerror="this.style.display='none'; document.getElementById('catFallback').style.display='block';">
-                    <source src="cat.mp4" type="video/mp4">
-                </video>
+                <!-- Massive Cat Emoji fallback (Initially Visible) -->
                 <div id="catFallback" class="cat-fallback">🐱</div>
+                <!-- Video is hidden by default -->
+                <video id="catVideo" class="cat-video" muted playsinline preload="auto">
+                    <source src="cat.mp4" type="video/mp4" id="catVideoSource">
+                </video>
             </div>
             <div class="cat-chat-bubble" id="catChat">😺 Hello! Let's celebrate! 🎉</div>
             <div class="countdown-display" id="countdownContainer">
@@ -381,7 +367,6 @@
     <!-- STAGE 6: NOTE -->
     <div class="stage" id="stageNote">
         <div class="note-pad-window" id="notePadWindow">
-            <!-- Custom note-pad template -->
             <svg class="note-pad-svg" viewBox="0 0 500 600" xmlns="http://www.w3.org/2000/svg">
                 <rect width="500" height="600" rx="20" fill="#FDF6E3" />
                 <g stroke="#CCCCCC" stroke-width="2">
@@ -430,15 +415,11 @@
     </div>
 
     <script>
-        // ================================================================
-        // 🎯 CONFIGURATION
-        // ================================================================
         const BIRTHDAY_PERSON = "Tasmia"; 
         const TARGET_DATE = new Date("2026-09-07T15:30:00").getTime();
         const CELEBRATION_DURATION = 12000;
         const SONG_DURATION = 15000;
         const BALLOON_IMAGES = ['b1.png', 'b2.png', 'b3.png', 'b4.png', 'b5.png', 'b6.png', 'b7.png'];
-        // ================================================================
 
         const audioTick = document.getElementById('audioTick');
         const audioKidHappy = document.getElementById('audioKidHappy');
@@ -449,6 +430,8 @@
         const audioNoteTune = document.getElementById('audioNoteTune');
         const bgVideo = document.getElementById('bgVideo');
         const catVideo = document.getElementById('catVideo');
+        const catVideoSource = document.getElementById('catVideoSource');
+        const catFallback = document.getElementById('catFallback');
 
         let audioCtx = null;
 
@@ -497,117 +480,52 @@
 
         class Particle {
             constructor(type, x, y, color) {
-                this.type = type;
-                this.x = x;
-                this.y = y;
-                this.color = color || this.randomColor();
-                this.rotation = 0;
-                this.rotationSpeed = 0;
-                this.vx = 0;
-                this.vy = 0;
-                this.size = 0;
-                this.life = 1;
-                this.decay = 0.005;
-                this.gravity = 0;
-                this.balloonImg = null;
+                this.type = type; this.x = x; this.y = y; this.color = color || this.randomColor();
+                this.rotation = 0; this.rotationSpeed = 0; this.vx = 0; this.vy = 0;
+                this.size = 0; this.life = 1; this.decay = 0.005; this.gravity = 0; this.balloonImg = null;
                 this.initByType();
             }
-            randomColor() {
-                return ['#FF4444', '#FFD700', '#FF69B4', '#4D96FF', '#2ECC71', '#FF8C00', '#9B59B6', '#00CED1', '#FF6EC7', '#F4D03F', '#E74C3C', '#3498DB', '#2ECC71', '#F39C12'][Math.floor(Math.random() * 14)];
-            }
+            randomColor() { return ['#FF4444', '#FFD700', '#FF69B4', '#4D96FF', '#2ECC71', '#FF8C00', '#9B59B6', '#00CED1', '#FF6EC7', '#F4D03F', '#E74C3C', '#3498DB', '#2ECC71', '#F39C12'][Math.floor(Math.random() * 14)]; }
             initByType() {
                 switch (this.type) {
                     case 'balloon':
                         const src = BALLOON_IMAGES[Math.floor(Math.random() * BALLOON_IMAGES.length)];
                         this.balloonImg = balloonImageCache[src];
-                        this.size = 60 + Math.random() * 40;
-                        this.vy = -(2.5 + Math.random() * 3);
-                        this.vx = 0;
-                        this.decay = 0.003;
-                        this.gravity = -0.005;
-                        break;
+                        this.size = 60 + Math.random() * 40; this.vy = -(2.5 + Math.random() * 3); this.vx = 0;
+                        this.decay = 0.003; this.gravity = -0.005; break;
                     case 'ribbon':
-                        this.size = 20 + Math.random() * 35;
-                        this.vy = 2 + Math.random() * 3;
-                        this.vx = (Math.random() - 0.5) * 3;
-                        this.decay = 0.004;
-                        this.rotationSpeed = (Math.random() - 0.5) * 2;
-                        break;
+                        this.size = 20 + Math.random() * 35; this.vy = 2 + Math.random() * 3;
+                        this.vx = (Math.random() - 0.5) * 3; this.decay = 0.004; this.rotationSpeed = (Math.random() - 0.5) * 2; break;
                     case 'firecracker':
-                        this.size = 4 + Math.random() * 7;
-                        this.vx = (Math.random() - 0.5) * 12;
-                        this.vy = -(4 + Math.random() * 10);
-                        this.decay = 0.015;
-                        this.gravity = 0.1;
-                        break;
+                        this.size = 4 + Math.random() * 7; this.vx = (Math.random() - 0.5) * 12; this.vy = -(4 + Math.random() * 10);
+                        this.decay = 0.015; this.gravity = 0.1; break;
                     case 'paper':
-                        this.size = 3 + Math.random() * 5;
-                        this.vy = 1.5 + Math.random() * 2;
-                        this.vx = (Math.random() - 0.5) * 2;
-                        this.decay = 0.004;
-                        break;
+                        this.size = 3 + Math.random() * 5; this.vy = 1.5 + Math.random() * 2; this.vx = (Math.random() - 0.5) * 2;
+                        this.decay = 0.004; break;
                     case 'sparkle':
-                        this.size = 2 + Math.random() * 4;
-                        this.vx = (Math.random() - 0.5) * 3;
-                        this.vy = (Math.random() - 0.5) * 3;
-                        this.decay = 0.01;
-                        break;
+                        this.size = 2 + Math.random() * 4; this.vx = (Math.random() - 0.5) * 3; this.vy = (Math.random() - 0.5) * 3;
+                        this.decay = 0.01; break;
                 }
             }
-            update() {
-                this.x += this.vx;
-                this.y += this.vy;
-                this.vy += this.gravity;
-                this.life -= this.decay;
-                return this.life > 0;
-            }
+            update() { this.x += this.vx; this.y += this.vy; this.vy += this.gravity; this.life -= this.decay; return this.life > 0; }
             draw(ctx) {
-                ctx.save();
-                ctx.globalAlpha = Math.max(0, Math.min(1, this.life));
-                ctx.translate(this.x, this.y);
+                ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, this.life)); ctx.translate(this.x, this.y);
                 switch (this.type) {
                     case 'balloon':
-                        if (this.balloonImg && this.balloonImg.complete) {
-                            ctx.drawImage(this.balloonImg, -this.size / 2, -this.size / 2, this.size, this.size);
-                        }
+                        if (this.balloonImg && this.balloonImg.complete) { ctx.drawImage(this.balloonImg, -this.size / 2, -this.size / 2, this.size, this.size); }
                         break;
                     case 'ribbon':
-                        ctx.strokeStyle = this.color;
-                        ctx.lineWidth = 3;
-                        ctx.beginPath();
-                        ctx.moveTo(0, 0);
-                        ctx.quadraticCurveTo(this.size * 0.5, -this.size * 0.35, this.size, Math.sin(this.rotation * 0.2) * 8);
-                        ctx.stroke();
-                        break;
+                        ctx.strokeStyle = this.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 0);
+                        ctx.quadraticCurveTo(this.size * 0.5, -this.size * 0.35, this.size, Math.sin(this.rotation * 0.2) * 8); ctx.stroke(); break;
                     case 'firecracker':
-                        ctx.fillStyle = this.color;
-                        ctx.beginPath();
-                        ctx.arc(0, 0, this.size * 0.7, 0, Math.PI * 2);
-                        ctx.fill();
-                        ctx.fillStyle = 'rgba(255,255,255,0.7)';
-                        ctx.beginPath();
-                        ctx.arc(0, 0, this.size * 0.3, 0, Math.PI * 2);
-                        ctx.fill();
-                        break;
+                        ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(0, 0, this.size * 0.7, 0, Math.PI * 2); ctx.fill();
+                        ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.beginPath(); ctx.arc(0, 0, this.size * 0.3, 0, Math.PI * 2); ctx.fill(); break;
                     case 'paper':
-                        ctx.fillStyle = this.color;
-                        ctx.beginPath();
-                        const sides = 5;
-                        for (let i = 0; i < sides; i++) {
-                            const a = (i / sides) * Math.PI * 2;
-                            const r = this.size;
-                            if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
-                            else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
-                        }
-                        ctx.closePath();
-                        ctx.fill();
-                        break;
+                        ctx.fillStyle = this.color; ctx.beginPath(); const sides = 5;
+                        for (let i = 0; i < sides; i++) { const a = (i / sides) * Math.PI * 2; const r = this.size; if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r); else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
+                        ctx.closePath(); ctx.fill(); break;
                     case 'sparkle':
-                        ctx.fillStyle = this.color;
-                        ctx.beginPath();
-                        ctx.arc(0, 0, this.size, 0, Math.PI * 2);
-                        ctx.fill();
-                        break;
+                        ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(0, 0, this.size, 0, Math.PI * 2); ctx.fill(); break;
                 }
                 ctx.restore();
             }
@@ -617,15 +535,8 @@
             if (!celebrationActive) return;
             if (performance.now() - celebrationStartTime > CELEBRATION_DURATION) { celebrationActive = false; return; }
             if (Math.random() < 0.08) {
-                const baseX = Math.random() * canvasW;
-                const groupSize = 1 + Math.floor(Math.random() * 2);
-                for (let i = 0; i < groupSize; i++) {
-                    const x = baseX + (Math.random() - 0.5) * 50;
-                    const p = new Particle('balloon', x, canvasH + 20);
-                    p.vy = -(2.5 + Math.random() * 3);
-                    p.vx = 0;
-                    particles.push(p);
-                }
+                const baseX = Math.random() * canvasW; const groupSize = 1 + Math.floor(Math.random() * 2);
+                for (let i = 0; i < groupSize; i++) { const x = baseX + (Math.random() - 0.5) * 50; const p = new Particle('balloon', x, canvasH + 20); p.vy = -(2.5 + Math.random() * 3); p.vx = 0; particles.push(p); }
             }
             if (Math.random() < 0.2) particles.push(new Particle('ribbon', Math.random() * canvasW, -10));
             if (Math.random() < 0.15) particles.push(new Particle('firecracker', Math.random() * canvasW, canvasH * (0.2 + Math.random() * 0.6)));
@@ -634,35 +545,18 @@
         }
 
         function spawnWindParticles() {
-            for (let i = 0; i < 40; i++) {
-                const ribbon = new Particle('ribbon', canvasW * 0.1 + Math.random() * canvasW * 0.8, -10);
-                ribbon.vy = 2 + Math.random() * 3;
-                ribbon.vx = (Math.random() - 0.5) * 2;
-                ribbon.decay = 0.005;
-                particles.push(ribbon);
-            }
-            for (let i = 0; i < 20; i++) {
-                particles.push(new Particle('paper', Math.random() * canvasW, canvasH * 0.1));
-                particles.push(new Particle('sparkle', Math.random() * canvasW, canvasH * 0.2));
-            }
+            for (let i = 0; i < 40; i++) { const ribbon = new Particle('ribbon', canvasW * 0.1 + Math.random() * canvasW * 0.8, -10); ribbon.vy = 2 + Math.random() * 3; ribbon.vx = (Math.random() - 0.5) * 2; ribbon.decay = 0.005; particles.push(ribbon); }
+            for (let i = 0; i < 20; i++) { particles.push(new Particle('paper', Math.random() * canvasW, canvasH * 0.1)); particles.push(new Particle('sparkle', Math.random() * canvasW, canvasH * 0.2)); }
         }
 
         function animateCanvas() {
             ctx.clearRect(0, 0, canvasW, canvasH);
-            particles = particles.filter(p => p.update());
-            particles.forEach(p => p.draw(ctx));
-            if (celebrationActive) spawnCelebrationParticles();
-            requestAnimationFrame(animateCanvas);
+            particles = particles.filter(p => p.update()); particles.forEach(p => p.draw(ctx));
+            if (celebrationActive) spawnCelebrationParticles(); requestAnimationFrame(animateCanvas);
         }
         animateCanvas();
 
-        const stages = {
-            start: document.getElementById('stageStart'),
-            timer: document.getElementById('stageTimer'),
-            celebration: document.getElementById('stageCelebration'),
-            candle: document.getElementById('stageCandle'),
-            note: document.getElementById('stageNote')
-        };
+        const stages = { start: document.getElementById('stageStart'), timer: document.getElementById('stageTimer'), celebration: document.getElementById('stageCelebration'), candle: document.getElementById('stageCandle'), note: document.getElementById('stageNote') };
         const commonBg = document.getElementById('commonBg');
         const timerPlate = document.getElementById('timerPlate');
         const btnTimerStart = document.getElementById('btnTimerStart');
@@ -673,233 +567,130 @@
         const noteContent = document.getElementById('noteContent');
         const birthdayTextImage = document.getElementById('birthdayTextImage');
         const celebrationBanner = document.getElementById('celebrationBanner');
-        const countdownNums = {
-            3: document.getElementById('count3'),
-            2: document.getElementById('count2'),
-            1: document.getElementById('count1')
-        };
+        const countdownNums = { 3: document.getElementById('count3'), 2: document.getElementById('count2'), 1: document.getElementById('count1') };
         const countdownContainer = document.getElementById('countdownContainer');
 
-        let timerRunning = false;
-        let currentStage = 'start';
+        let timerRunning = false; let currentStage = 'start';
 
         function setStage(stageName) {
-            Object.keys(stages).forEach(key => {
-                const stage = stages[key];
-                if (key === stageName) {
-                    stage.classList.add('active');
-                } else if (stage.classList.contains('active')) {
-                    stage.classList.add('exit-fade');
-                    stage.classList.remove('active');
-                    setTimeout(() => stage.classList.remove('exit-fade'), 1200);
-                }
-            });
+            Object.keys(stages).forEach(key => { const stage = stages[key]; if (key === stageName) { stage.classList.add('active'); } else if (stage.classList.contains('active')) { stage.classList.add('exit-fade'); stage.classList.remove('active'); setTimeout(() => stage.classList.remove('exit-fade'), 1200); } });
             currentStage = stageName;
-            if (stageName === 'start' || stageName === 'timer') {
-                commonBg.classList.add('active');
-                startBackgroundVideo();
-            } else {
-                commonBg.classList.remove('active');
-            }
+            if (stageName === 'start' || stageName === 'timer') { commonBg.classList.add('active'); startBackgroundVideo(); } else { commonBg.classList.remove('active'); }
         }
 
-        document.getElementById('btnStart').addEventListener('click', () => {
-            initAudioContext();
-            setStage('timer');
-            formatTimer();
-            startTimer();
-        });
+        document.getElementById('btnStart').addEventListener('click', () => { initAudioContext(); setStage('timer'); formatTimer(); startTimer(); });
 
         function formatTimer() {
-            const now = Date.now();
-            let diff = TARGET_DATE - now;
-            if (diff < 0) diff = 0;
-            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-            document.getElementById('timerDays').textContent = String(days).padStart(2, '0');
-            document.getElementById('timerHours').textContent = String(hours).padStart(2, '0');
-            document.getElementById('timerMinutes').textContent = String(minutes).padStart(2, '0');
-            document.getElementById('timerSeconds').textContent = String(seconds).padStart(2, '0');
+            const now = Date.now(); let diff = TARGET_DATE - now; if (diff < 0) diff = 0;
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24)); const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)); const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+            document.getElementById('timerDays').textContent = String(days).padStart(2, '0'); document.getElementById('timerHours').textContent = String(hours).padStart(2, '0');
+            document.getElementById('timerMinutes').textContent = String(minutes).padStart(2, '0'); document.getElementById('timerSeconds').textContent = String(seconds).padStart(2, '0');
         }
 
         function startTimer() {
-            if (timerRunning) return;
-            timerRunning = true;
-            btnTimerStart.disabled = true;
-            btnTimerStart.textContent = '⏳ Counting...';
+            if (timerRunning) return; timerRunning = true; btnTimerStart.disabled = true; btnTimerStart.textContent = '⏳ Counting...';
             audioTick.play().then(() => {}).catch(() => {});
             const tickInterval = setInterval(() => {
                 formatTimer();
-                if (Date.now() >= TARGET_DATE) {
-                    clearInterval(tickInterval);
-                    audioTick.pause();
-                    audioTick.currentTime = 0;
-                    onTimerComplete();
-                } else if (audioTick.paused) {
-                    playFallbackTick();
-                }
+                if (Date.now() >= TARGET_DATE) { clearInterval(tickInterval); audioTick.pause(); audioTick.currentTime = 0; onTimerComplete(); }
+                else if (audioTick.paused) { playFallbackTick(); }
             }, 1000);
         }
 
         function onTimerComplete() {
-            timerRunning = false;
-            timerPlate.style.animation = 'timerPlateVanish 0.8s forwards';
-            timerPlate.style.transform = 'scale(0) rotate(360deg)';
-            timerPlate.style.opacity = '0';
-            setTimeout(() => {
-                setStage('celebration');
-                startCelebration();
-            }, 600);
+            timerRunning = false; timerPlate.style.animation = 'timerPlateVanish 0.8s forwards'; timerPlate.style.transform = 'scale(0) rotate(360deg)'; timerPlate.style.opacity = '0';
+            setTimeout(() => { setStage('celebration'); startCelebration(); }, 600);
         }
         btnTimerStart.addEventListener('click', startTimer);
 
         function startCelebration() {
-            celebrationActive = true;
-            celebrationStartTime = performance.now();
-            birthdayTextImage.style.animation = 'none';
-            void birthdayTextImage.offsetHeight;
-            birthdayTextImage.style.animation = 'burstIn 1.8s var(--ease-spring) forwards';
-            setTimeout(() => {
-                celebrationBanner.classList.add('show');
-            }, 400);
-            audioKidHappy.play().catch(() => {});
-            audioFirecrackers.play().catch(() => {});
-            for (let i = 0; i < 15; i++) {
-                particles.push(new Particle('firecracker', Math.random() * canvasW, canvasH - Math.random() * 200));
-            }
-            setTimeout(() => {
-                celebrationActive = false;
-                audioFirecrackers.pause();
-                audioFirecrackers.currentTime = 0;
-                celebrationBanner.classList.add('hide');
-                setStage('candle');
-                startCandleStage();
-            }, CELEBRATION_DURATION);
+            celebrationActive = true; celebrationStartTime = performance.now();
+            birthdayTextImage.style.animation = 'none'; void birthdayTextImage.offsetHeight; birthdayTextImage.style.animation = 'burstIn 1.8s var(--ease-spring) forwards';
+            setTimeout(() => { celebrationBanner.classList.add('show'); }, 400);
+            audioKidHappy.play().catch(() => {}); audioFirecrackers.play().catch(() => {});
+            for (let i = 0; i < 15; i++) { particles.push(new Particle('firecracker', Math.random() * canvasW, canvasH - Math.random() * 200)); }
+            setTimeout(() => { celebrationActive = false; audioFirecrackers.pause(); audioFirecrackers.currentTime = 0; celebrationBanner.classList.add('hide'); setStage('candle'); startCandleStage(); }, CELEBRATION_DURATION);
         }
 
         function startCandleStage() {
-            cakeFlameOverlay.classList.remove('blown');
-            cakeWrapper.classList.remove('cake-exit');
-            catVideo.pause();
-            catVideo.currentTime = 0;
-            countdownNums[3].className = 'countdown-num';
-            countdownNums[2].className = 'countdown-num';
-            countdownNums[1].className = 'countdown-num';
-            countdownNums[3].style.opacity = '0';
-            countdownNums[2].style.opacity = '0';
-            countdownNums[1].style.opacity = '0';
-            countdownContainer.style.display = 'flex';
-            cakeWrapper.style.animation = 'none';
-            void cakeWrapper.offsetHeight;
-            cakeWrapper.style.animation = 'cakeRiseIn 1s var(--ease-spring) 0.3s forwards';
-            cakeWrapper.style.transform = 'scale(0) translateY(60px)';
-            cakeWrapper.style.opacity = '0';
+            cakeFlameOverlay.classList.remove('blown'); cakeWrapper.classList.remove('cake-exit');
+            catVideo.pause(); catVideo.currentTime = 0;
+            countdownNums[3].className = 'countdown-num'; countdownNums[2].className = 'countdown-num'; countdownNums[1].className = 'countdown-num';
+            countdownNums[3].style.opacity = '0'; countdownNums[2].style.opacity = '0'; countdownNums[1].style.opacity = '0';
+            countdownContainer.style.display = 'flex'; cakeWrapper.style.animation = 'none'; void cakeWrapper.offsetHeight;
+            cakeWrapper.style.animation = 'cakeRiseIn 1s var(--ease-spring) 0.3s forwards'; cakeWrapper.style.transform = 'scale(0) translateY(60px)'; cakeWrapper.style.opacity = '0';
 
-            setTimeout(() => {
-                catChat.innerHTML = `😺 Happy Birthday ${BIRTHDAY_PERSON}!! 🎂`;
-                catChat.style.animation = 'none';
-                void catChat.offsetHeight;
-                catChat.style.animation = 'chatBubbleIn 0.7s var(--ease-spring) forwards';
-            }, 500);
-
-            setTimeout(() => {
-                catChat.innerHTML = `😺 Let's blow up the candle in...`;
-                catChat.style.animation = 'none';
-                void catChat.offsetHeight;
-                catChat.style.animation = 'chatBubbleIn 0.7s var(--ease-spring) forwards';
-            }, 4500);
+            setTimeout(() => { catChat.innerHTML = `😺 Happy Birthday ${BIRTHDAY_PERSON}!! 🎂`; catChat.style.animation = 'none'; void catChat.offsetHeight; catChat.style.animation = 'chatBubbleIn 0.7s var(--ease-spring) forwards'; }, 500);
+            setTimeout(() => { catChat.innerHTML = `😺 Let's blow up the candle in...`; catChat.style.animation = 'none'; void catChat.offsetHeight; catChat.style.animation = 'chatBubbleIn 0.7s var(--ease-spring) forwards'; }, 4500);
 
             setTimeout(() => {
                 countdownNums[3].classList.add('pop-in');
-                setTimeout(() => {
-                    countdownNums[3].classList.add('pop-out');
-                    countdownNums[3].classList.remove('pop-in');
-                    setTimeout(() => {
-                        countdownNums[2].classList.add('pop-in');
-                        setTimeout(() => {
-                            countdownNums[2].classList.add('pop-out');
-                            countdownNums[2].classList.remove('pop-in');
-                            setTimeout(() => {
-                                countdownNums[1].classList.add('pop-in');
-                                setTimeout(() => { blowCandle(); }, 500);
-                            }, 500);
-                        }, 500);
-                    }, 500);
+                setTimeout(() => { countdownNums[3].classList.add('pop-out'); countdownNums[3].classList.remove('pop-in');
+                    setTimeout(() => { countdownNums[2].classList.add('pop-in');
+                        setTimeout(() => { countdownNums[2].classList.add('pop-out'); countdownNums[2].classList.remove('pop-in');
+                            setTimeout(() => { countdownNums[1].classList.add('pop-in');
+                                setTimeout(() => { blowCandle(); }, 500); }, 500);
+                        }, 500); }, 500);
                 }, 500);
             }, 5500);
         }
 
         function blowCandle() {
-            audioBlowCandle.play().catch(() => {});
-            spawnWindParticles();
-            cakeFlameOverlay.classList.add('blown');
+            audioBlowCandle.play().catch(() => {}); spawnWindParticles(); cakeFlameOverlay.classList.add('blown');
+            setTimeout(() => { audioClapping.play().catch(() => {}); for (let i = 0; i < 5; i++) spawnCelebrationParticles(); }, 300);
             setTimeout(() => {
-                audioClapping.play().catch(() => {});
-                for (let i = 0; i < 5; i++) spawnCelebrationParticles();
-            }, 300);
-            setTimeout(() => {
-                catChat.innerHTML = `😺 Yay!! 🎉 That was amazing!`;
-                catChat.style.animation = 'none';
-                void catChat.offsetHeight;
-                catChat.style.animation = 'chatBubbleIn 0.7s var(--ease-spring) forwards';
-                cakeWrapper.classList.add('cake-exit');
-                audioBirthdaySong.play().catch(() => {});
-                
+                catChat.innerHTML = `😺 Yay!! 🎉 That was amazing!`; catChat.style.animation = 'none'; void catChat.offsetHeight; catChat.style.animation = 'chatBubbleIn 0.7s var(--ease-spring) forwards';
+                cakeWrapper.classList.add('cake-exit'); audioBirthdaySong.play().catch(() => {});
+
+                // Super robust cat loading logic
                 const tryPlayCat = () => {
+                    // Show fallback immediately if video is not ready
                     if (catVideo.readyState >= 3) {
+                        catVideo.style.display = 'block';
+                        catFallback.style.display = 'none';
                         catVideo.play().catch(() => {});
                     } else {
-                        catVideo.addEventListener('canplay', () => catVideo.play().catch(() => {}), { once: true });
+                        catVideo.addEventListener('canplay', () => {
+                            catVideo.style.display = 'block';
+                            catFallback.style.display = 'none';
+                            catVideo.play().catch(() => {});
+                        }, { once: true });
+                        
+                        // Timeout: if video doesn't load in 2 seconds, keep the fallback emoji visible
+                        setTimeout(() => {
+                            if (catVideo.readyState < 3) {
+                                catVideo.style.display = 'none';
+                                catFallback.style.display = 'block';
+                            }
+                        }, 2000);
                     }
                 };
                 tryPlayCat();
 
                 setTimeout(() => {
-                    audioClapping.pause();
-                    audioClapping.currentTime = 0;
-                    audioBirthdaySong.pause();
-                    audioBirthdaySong.currentTime = 0;
-                    catVideo.pause();
-                    setStage('note');
-                    startNoteStage();
+                    audioClapping.pause(); audioClapping.currentTime = 0;
+                    audioBirthdaySong.pause(); audioBirthdaySong.currentTime = 0;
+                    catVideo.pause(); setStage('note'); startNoteStage();
                 }, SONG_DURATION);
             }, 4000);
         }
 
         function startNoteStage() {
-            audioBirthdaySong.pause();
-            audioBirthdaySong.currentTime = 0;
-            audioNoteTune.play().catch(() => {});
+            audioBirthdaySong.pause(); audioBirthdaySong.currentTime = 0; audioNoteTune.play().catch(() => {});
             const noteText = `Dear ${BIRTHDAY_PERSON},\nHappy Birthday! 🎉\nYour smile lights up every room.\nMay this year bring you endless joy.\nYou deserve all the happiness.\nWith love and warmest wishes,`;
-            noteContent.innerHTML = '';
-            let charIndex = 0;
-
+            noteContent.innerHTML = ''; let charIndex = 0;
             function typeNote() {
-                if (charIndex < noteText.length) {
-                    const ch = noteText[charIndex];
-                    if (ch === '\n') noteContent.innerHTML += '<br>';
-                    else if (ch === ' ') noteContent.innerHTML += '&nbsp;';
-                    else noteContent.innerHTML += ch;
-                    charIndex++;
-                    setTimeout(typeNote, 25 + Math.random() * 20);
-                }
+                if (charIndex < noteText.length) { const ch = noteText[charIndex]; if (ch === '\n') noteContent.innerHTML += '<br>'; else if (ch === ' ') noteContent.innerHTML += '&nbsp;'; else noteContent.innerHTML += ch; charIndex++; setTimeout(typeNote, 25 + Math.random() * 20); }
             }
             setTimeout(typeNote, 800);
         }
 
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                if (currentStage === 'start') document.getElementById('btnStart').click();
-                else if (currentStage === 'timer' && !timerRunning) startTimer();
-            }
+            if (e.key === 'Enter' || e.key === ' ') { if (currentStage === 'start') document.getElementById('btnStart').click(); else if (currentStage === 'timer' && !timerRunning) startTimer(); }
         });
 
-        formatTimer();
-        commonBg.classList.add('active');
-        startBackgroundVideo();
-        console.log('🎂 World-Class Birthday Celebration Loaded!');
+        formatTimer(); commonBg.classList.add('active'); startBackgroundVideo(); console.log('🎂 World-Class Birthday Celebration Loaded!');
     </script>
 </body>
 </html>
