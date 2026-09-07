@@ -24,13 +24,24 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             pointer-events: none; z-index: 60;
         }
+        
+        /* ====== BACKGROUND (Always shows gradient, video enhances it) ====== */
         .common-bg {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 5; pointer-events: none; visibility: hidden; opacity: 0;
+            z-index: 5; pointer-events: none;
+            /* CSS Gradient FALLBACK - always visible */
+            background: radial-gradient(ellipse at 50% 50%, #1a1a3e 0%, #0a0a20 50%, #050510 100%);
+            visibility: hidden; opacity: 0;
             transition: opacity 0.5s ease;
         }
         .common-bg.active { visibility: visible; opacity: 1; }
-        .common-bg video { width: 100%; height: 100%; object-fit: cover; }
+        /* Video sits on top of gradient, if it fails, gradient shows */
+        .common-bg video {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%; object-fit: cover;
+            opacity: 1;
+        }
+        
         .stage {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; align-items: center; justify-content: center;
@@ -161,37 +172,14 @@
             70% { transform: translateX(-15px) rotate(-2deg) scale(0.95); }
             100% { transform: translateX(0) rotate(0) scale(1); opacity: 1; }
         }
-        
-        /* Robust Cat Display: Emoji acts as a fallback under the video */
-        .cat-wrapper {
-            position: relative;
-            width: 180px;
-            height: 180px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+        /* Clean video - no complex filters or heavy CSS */
         .cat-video {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            object-fit: cover;
+            width: 150px; height: auto; object-fit: cover; display: block;
             border-radius: 15px;
-            border: 2px solid rgba(255, 255, 255, 0.2);
+            border: 3px solid rgba(255, 255, 255, 0.3);
             background: #1a1a3e;
-            will-change: transform;
-            contain: strict;
-            z-index: 2;
-            opacity: 0; /* Hidden until it is fully playable */
+            opacity: 0; /* hidden until ready to play */
         }
-        .cat-emoji {
-            font-size: 6rem;
-            line-height: 1;
-            color: #FFD700;
-            text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
-            z-index: 1;
-        }
-        
         .cat-chat-bubble {
             background: linear-gradient(135deg, #FAD0C4 0%, #FFD1FF 100%);
             border: 3px solid #FF69B4; border-radius: 24px 24px 24px 8px;
@@ -294,8 +282,7 @@
             .timer-plate { width: 80%; padding: 15px 10px; }
             .timer-unit-value { font-size: 1.4rem; }
             .birthday-text-image { width: 300px; }
-            .cat-wrapper { width: 140px; height: 140px; }
-            .cat-emoji { font-size: 4.5rem; }
+            .cat-video { width: 120px; }
             .cake-gif { width: 140px; }
             .countdown-num { font-size: 3rem; }
             .cat-chat-bubble { max-width: 280px; font-size: 0.9rem; }
@@ -307,6 +294,7 @@
 </head>
 <body>
     <canvas id="particleCanvas"></canvas>
+    <!-- Background with solid gradient fallback - always visible -->
     <div class="common-bg" id="commonBg">
         <video id="bgVideo" autoplay muted loop playsinline preload="auto">
             <source src="background.mp4" type="video/mp4">
@@ -364,14 +352,9 @@
     <div class="stage" id="stageCandle">
         <div class="candle-scene">
             <div class="full-cat-container" id="catContainer">
-                <div class="cat-wrapper">
-                    <!-- Absolutely Positioned Emoji (Always visible) -->
-                    <div id="catEmoji" class="cat-emoji">🐱</div>
-                    <!-- Video sits on top of emoji, hidden until loadable -->
-                    <video id="catVideo" class="cat-video" muted playsinline preload="auto">
-                        <source src="cat.mp4" type="video/mp4">
-                    </video>
-                </div>
+                <video id="catVideo" class="cat-video" muted playsinline preload="auto">
+                    <source src="cat.mp4" type="video/mp4">
+                </video>
             </div>
             <div class="cat-chat-bubble" id="catChat">😺 Hello! Let's celebrate! 🎉</div>
             <div class="countdown-display" id="countdownContainer">
@@ -454,16 +437,16 @@
         const audioNoteTune = document.getElementById('audioNoteTune');
         const bgVideo = document.getElementById('bgVideo');
         const catVideo = document.getElementById('catVideo');
-        const catEmoji = document.getElementById('catEmoji');
 
         let audioCtx = null;
 
+        // Keep background video playing
         function startBackgroundVideo() {
             bgVideo.play().catch(() => {});
         }
         window.addEventListener('load', startBackgroundVideo);
-        setTimeout(startBackgroundVideo, 1000);
-        setTimeout(startBackgroundVideo, 3000);
+        setTimeout(startBackgroundVideo, 500);
+        setTimeout(startBackgroundVideo, 2000);
 
         function initAudioContext() {
             if (!audioCtx) audioCtx = new(window.AudioContext || window.webkitAudioContext)();
@@ -485,11 +468,7 @@
         }
 
         const balloonImageCache = {};
-        BALLOON_IMAGES.forEach(src => {
-            const img = new Image();
-            img.src = src;
-            balloonImageCache[src] = img;
-        });
+        BALLOON_IMAGES.forEach(src => { const img = new Image(); img.src = src; balloonImageCache[src] = img; });
 
         const canvas = document.getElementById('particleCanvas');
         const ctx = canvas.getContext('2d');
@@ -534,21 +513,11 @@
             draw(ctx) {
                 ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, this.life)); ctx.translate(this.x, this.y);
                 switch (this.type) {
-                    case 'balloon':
-                        if (this.balloonImg && this.balloonImg.complete) { ctx.drawImage(this.balloonImg, -this.size / 2, -this.size / 2, this.size, this.size); }
-                        break;
-                    case 'ribbon':
-                        ctx.strokeStyle = this.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 0);
-                        ctx.quadraticCurveTo(this.size * 0.5, -this.size * 0.35, this.size, Math.sin(this.rotation * 0.2) * 8); ctx.stroke(); break;
-                    case 'firecracker':
-                        ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(0, 0, this.size * 0.7, 0, Math.PI * 2); ctx.fill();
-                        ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.beginPath(); ctx.arc(0, 0, this.size * 0.3, 0, Math.PI * 2); ctx.fill(); break;
-                    case 'paper':
-                        ctx.fillStyle = this.color; ctx.beginPath(); const sides = 5;
-                        for (let i = 0; i < sides; i++) { const a = (i / sides) * Math.PI * 2; const r = this.size; if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r); else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); }
-                        ctx.closePath(); ctx.fill(); break;
-                    case 'sparkle':
-                        ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(0, 0, this.size, 0, Math.PI * 2); ctx.fill(); break;
+                    case 'balloon': if (this.balloonImg && this.balloonImg.complete) { ctx.drawImage(this.balloonImg, -this.size / 2, -this.size / 2, this.size, this.size); } break;
+                    case 'ribbon': ctx.strokeStyle = this.color; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(this.size * 0.5, -this.size * 0.35, this.size, Math.sin(this.rotation * 0.2) * 8); ctx.stroke(); break;
+                    case 'firecracker': ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(0, 0, this.size * 0.7, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.beginPath(); ctx.arc(0, 0, this.size * 0.3, 0, Math.PI * 2); ctx.fill(); break;
+                    case 'paper': ctx.fillStyle = this.color; ctx.beginPath(); const sides = 5; for (let i = 0; i < sides; i++) { const a = (i / sides) * Math.PI * 2; const r = this.size; if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r); else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r); } ctx.closePath(); ctx.fill(); break;
+                    case 'sparkle': ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(0, 0, this.size, 0, Math.PI * 2); ctx.fill(); break;
                 }
                 ctx.restore();
             }
@@ -638,11 +607,7 @@
 
         function startCandleStage() {
             cakeFlameOverlay.classList.remove('blown'); cakeWrapper.classList.remove('cake-exit');
-            // Keep cat emoji visible and video hidden initially
-            catEmoji.style.display = 'block';
-            catVideo.style.opacity = '0';
-            catVideo.pause(); catVideo.currentTime = 0;
-            
+            catVideo.pause(); catVideo.currentTime = 0; catVideo.style.opacity = '0';
             countdownNums[3].className = 'countdown-num'; countdownNums[2].className = 'countdown-num'; countdownNums[1].className = 'countdown-num';
             countdownNums[3].style.opacity = '0'; countdownNums[2].style.opacity = '0'; countdownNums[1].style.opacity = '0';
             countdownContainer.style.display = 'flex'; cakeWrapper.style.animation = 'none'; void cakeWrapper.offsetHeight;
@@ -670,25 +635,16 @@
                 catChat.innerHTML = `😺 Yay!! 🎉 That was amazing!`; catChat.style.animation = 'none'; void catChat.offsetHeight; catChat.style.animation = 'chatBubbleIn 0.7s var(--ease-spring) forwards';
                 cakeWrapper.classList.add('cake-exit'); audioBirthdaySong.play().catch(() => {});
 
-                // Bulletproof logic: try to play video, otherwise keep the emoji
+                // Wait for video to be fully ready, then play
                 const tryPlayCat = () => {
                     if (catVideo.readyState >= 3) {
                         catVideo.style.opacity = '1';
-                        catEmoji.style.display = 'none';
                         catVideo.play().catch(() => {});
                     } else {
                         catVideo.addEventListener('canplay', () => {
                             catVideo.style.opacity = '1';
-                            catEmoji.style.display = 'none';
                             catVideo.play().catch(() => {});
                         }, { once: true });
-                        // If it takes too long, keep the emoji visible
-                        setTimeout(() => {
-                            if (catVideo.readyState < 3) {
-                                catVideo.style.opacity = '0';
-                                catEmoji.style.display = 'block';
-                            }
-                        }, 3000);
                     }
                 };
                 tryPlayCat();
