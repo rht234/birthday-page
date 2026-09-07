@@ -161,15 +161,37 @@
             70% { transform: translateX(-15px) rotate(-2deg) scale(0.95); }
             100% { transform: translateX(0) rotate(0) scale(1); opacity: 1; }
         }
+        
+        /* Robust Cat Display: Emoji acts as a fallback under the video */
+        .cat-wrapper {
+            position: relative;
+            width: 180px;
+            height: 180px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
         .cat-video {
-            width: 180px; height: auto; object-fit: cover; display: none; /* Starts hidden */
-            background: #1a1a3e; border-radius: 15px;
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: cover;
+            border-radius: 15px;
             border: 2px solid rgba(255, 255, 255, 0.2);
-            will-change: transform; contain: strict;
+            background: #1a1a3e;
+            will-change: transform;
+            contain: strict;
+            z-index: 2;
+            opacity: 0; /* Hidden until it is fully playable */
         }
-        .cat-fallback {
-            font-size: 4rem; color: #fff; display: block; padding: 10px; text-align: center;
+        .cat-emoji {
+            font-size: 6rem;
+            line-height: 1;
+            color: #FFD700;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+            z-index: 1;
         }
+        
         .cat-chat-bubble {
             background: linear-gradient(135deg, #FAD0C4 0%, #FFD1FF 100%);
             border: 3px solid #FF69B4; border-radius: 24px 24px 24px 8px;
@@ -272,8 +294,8 @@
             .timer-plate { width: 80%; padding: 15px 10px; }
             .timer-unit-value { font-size: 1.4rem; }
             .birthday-text-image { width: 300px; }
-            .cat-video { width: 140px; }
-            .cat-fallback { font-size: 3rem; }
+            .cat-wrapper { width: 140px; height: 140px; }
+            .cat-emoji { font-size: 4.5rem; }
             .cake-gif { width: 140px; }
             .countdown-num { font-size: 3rem; }
             .cat-chat-bubble { max-width: 280px; font-size: 0.9rem; }
@@ -342,12 +364,14 @@
     <div class="stage" id="stageCandle">
         <div class="candle-scene">
             <div class="full-cat-container" id="catContainer">
-                <!-- Massive Cat Emoji fallback (Initially Visible) -->
-                <div id="catFallback" class="cat-fallback">🐱</div>
-                <!-- Video is hidden by default -->
-                <video id="catVideo" class="cat-video" muted playsinline preload="auto">
-                    <source src="cat.mp4" type="video/mp4" id="catVideoSource">
-                </video>
+                <div class="cat-wrapper">
+                    <!-- Absolutely Positioned Emoji (Always visible) -->
+                    <div id="catEmoji" class="cat-emoji">🐱</div>
+                    <!-- Video sits on top of emoji, hidden until loadable -->
+                    <video id="catVideo" class="cat-video" muted playsinline preload="auto">
+                        <source src="cat.mp4" type="video/mp4">
+                    </video>
+                </div>
             </div>
             <div class="cat-chat-bubble" id="catChat">😺 Hello! Let's celebrate! 🎉</div>
             <div class="countdown-display" id="countdownContainer">
@@ -430,8 +454,7 @@
         const audioNoteTune = document.getElementById('audioNoteTune');
         const bgVideo = document.getElementById('bgVideo');
         const catVideo = document.getElementById('catVideo');
-        const catVideoSource = document.getElementById('catVideoSource');
-        const catFallback = document.getElementById('catFallback');
+        const catEmoji = document.getElementById('catEmoji');
 
         let audioCtx = null;
 
@@ -615,7 +638,11 @@
 
         function startCandleStage() {
             cakeFlameOverlay.classList.remove('blown'); cakeWrapper.classList.remove('cake-exit');
+            // Keep cat emoji visible and video hidden initially
+            catEmoji.style.display = 'block';
+            catVideo.style.opacity = '0';
             catVideo.pause(); catVideo.currentTime = 0;
+            
             countdownNums[3].className = 'countdown-num'; countdownNums[2].className = 'countdown-num'; countdownNums[1].className = 'countdown-num';
             countdownNums[3].style.opacity = '0'; countdownNums[2].style.opacity = '0'; countdownNums[1].style.opacity = '0';
             countdownContainer.style.display = 'flex'; cakeWrapper.style.animation = 'none'; void cakeWrapper.offsetHeight;
@@ -643,27 +670,25 @@
                 catChat.innerHTML = `😺 Yay!! 🎉 That was amazing!`; catChat.style.animation = 'none'; void catChat.offsetHeight; catChat.style.animation = 'chatBubbleIn 0.7s var(--ease-spring) forwards';
                 cakeWrapper.classList.add('cake-exit'); audioBirthdaySong.play().catch(() => {});
 
-                // Super robust cat loading logic
+                // Bulletproof logic: try to play video, otherwise keep the emoji
                 const tryPlayCat = () => {
-                    // Show fallback immediately if video is not ready
                     if (catVideo.readyState >= 3) {
-                        catVideo.style.display = 'block';
-                        catFallback.style.display = 'none';
+                        catVideo.style.opacity = '1';
+                        catEmoji.style.display = 'none';
                         catVideo.play().catch(() => {});
                     } else {
                         catVideo.addEventListener('canplay', () => {
-                            catVideo.style.display = 'block';
-                            catFallback.style.display = 'none';
+                            catVideo.style.opacity = '1';
+                            catEmoji.style.display = 'none';
                             catVideo.play().catch(() => {});
                         }, { once: true });
-                        
-                        // Timeout: if video doesn't load in 2 seconds, keep the fallback emoji visible
+                        // If it takes too long, keep the emoji visible
                         setTimeout(() => {
                             if (catVideo.readyState < 3) {
-                                catVideo.style.display = 'none';
-                                catFallback.style.display = 'block';
+                                catVideo.style.opacity = '0';
+                                catEmoji.style.display = 'block';
                             }
-                        }, 2000);
+                        }, 3000);
                     }
                 };
                 tryPlayCat();
